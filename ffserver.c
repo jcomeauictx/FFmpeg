@@ -978,7 +978,7 @@ static int handle_connection(HTTPContext *c)
 {
     int len, ret;
     uint8_t *ptr;
-
+    av_log(NULL, AV_LOG_TRACE, "handle_connection(), state=%d\n", c->state);
     switch(c->state) {
     case HTTPSTATE_WAIT_REQUEST:
     case RTSPSTATE_WAIT_REQUEST:
@@ -1017,6 +1017,7 @@ static int handle_connection(HTTPContext *c)
                 return -1;
         } else if (ptr >= c->buffer_end) {
             /* request too long: cannot do anything */
+            av_log(NULL, AV_LOG_ERROR, "HTTP request too long, giving up\n");
             return -1;
         } else goto read_loop;
 
@@ -1074,6 +1075,7 @@ static int handle_connection(HTTPContext *c)
             return -1;
         /* Check if it is a single jpeg frame 123 */
         if (c->stream->single_frame && c->data_count > c->cur_frame_bytes && c->cur_frame_bytes > 0) {
+            av_log(NULL, AV_LOG_TRACE, "received single jpeg frame\n");
             close_connection(c);
         }
         break;
@@ -1083,8 +1085,10 @@ static int handle_connection(HTTPContext *c)
             return -1;
         if (!(c->poll_entry->revents & POLLIN))
             return 0;
-        if (http_receive_data(c) < 0)
+        if (http_receive_data(c) < 0) {
+            av_log(NULL, AV_LOG_ERROR, "failed in http_receive_data()\n");
             return -1;
+        }
         break;
     case HTTPSTATE_WAIT_FEED:
         /* no need to read if no events */
@@ -1146,6 +1150,7 @@ static int handle_connection(HTTPContext *c)
         /* nothing to do */
         break;
     default:
+        av_log(NULL, AV_LOG_DEBUG, "unexpectedly reached default case\n");
         return -1;
     }
     return 0;
