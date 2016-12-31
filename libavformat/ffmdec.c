@@ -545,16 +545,20 @@ static int ffm_read_header(AVFormatContext *s)
     int i, nb_streams, ret;
     uint32_t tag;
 
+    av_log(s, AV_LOG_TRACE, "starting ffm_read_header()\n");
     /* header */
     tag = avio_rl32(pb);
     if (tag == MKTAG('F', 'F', 'M', '2'))
         return ffm2_read_header(s);
     if (tag != MKTAG('F', 'F', 'M', '1')) {
+        av_log(s, AV_LOG_ERROR, "found tag %.4s, expecting 'FFM1'\n", &tag);
         ret = AVERROR_INVALIDDATA;
         goto fail;
     }
     ffm->packet_size = avio_rb32(pb);
     if (ffm->packet_size != FFM_PACKET_SIZE) {
+        av_log(s, AV_LOG_ERROR, "packet size %d, should be %d\n",
+               ffm->packet_size, FFM_PACKET_SIZE);
         ret = AVERROR_INVALIDDATA;
         goto fail;
     }

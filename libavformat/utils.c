@@ -599,7 +599,8 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
 
     if (!(s->flags&AVFMT_FLAG_PRIV_OPT) && s->iformat->read_header)
         if ((ret = s->iformat->read_header(s)) < 0) {
-            av_log(s, AV_LOG_ERROR, "Failed read_header()\n");
+            av_log(s, AV_LOG_ERROR, "Failed %s read_header()\n",
+                   s->iformat->name);
             goto fail;
         }
     if (id3v2_extra_meta) {
