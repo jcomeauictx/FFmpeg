@@ -2729,26 +2729,31 @@ static int http_start_receive_data(HTTPContext *c)
 static int http_receive_data(HTTPContext *c)
 {
     HTTPContext *c1;
-    int status, len, loop_run = 0;
+    int status, error, len, loop_run = 0;
 
     while (c->chunked_encoding && !c->chunk_size &&
            c->buffer_end > c->buffer_ptr) {
         /* read chunk header, if present */
         len = recv(c->fd, c->buffer_ptr, 1, 0);
         if (len < 0) {
-            if (ff_neterrno() != AVERROR(EAGAIN) &&
-                ff_neterrno() != AVERROR(EINTR))
+            error = ff_neterrno();
+            if (error != AVERROR(EAGAIN) && error != AVERROR(EINTR)) {
                 /* error : close connection */
+                av_log(NULL, AV_LOG_ERROR, "failed at chunk header: %s\n",
+                    strerror(error));
                 goto fail;
+            }
             return 0;
         } else if (len == 0) {
             /* end of connection : close it */
+            av_log(NULL, AV_LOG_ERROR, "premature end of connection\n");
             goto fail;
         } else if (c->buffer_ptr - c->buffer >= 2 &&
                    !memcmp(c->buffer_ptr - 1, "\r\n", 2)) {
             c->chunk_size = strtol(c->buffer, 0, 16);
 	    av_log(NULL, AV_LOG_TRACE, "got chunk size of %d\n", c->chunk_size);
             if (c->chunk_size <= 0) { // end of stream or invalid chunk size
+                av_log(NULL, AV_LOG_ERROR, "Unexpected end of stream\n");
                 c->chunk_size = 0;
                 goto fail;
             }
@@ -2768,10 +2773,13 @@ static int http_receive_data(HTTPContext *c)
                    FFMIN(c->chunk_size, c->buffer_end - c->buffer_ptr), 0);
 	av_log(NULL, AV_LOG_TRACE, "recv got %d bytes\n", len);
         if (len < 0) {
-            if (ff_neterrno() != AVERROR(EAGAIN) &&
-                ff_neterrno() != AVERROR(EINTR))
+            error = ff_neterrno();
+            if (error != AVERROR(EAGAIN) && error != AVERROR(EINTR)) {
+                av_log(NULL, AV_LOG_ERROR, "failed reading chunk: %s\n",
+                    strerror(error));
                 /* error : close connection */
                 goto fail;
+            }
         } else if (len == 0) {
             /* end of connection : close it */
             av_log(NULL, AV_LOG_TRACE, "end of connection\n");
