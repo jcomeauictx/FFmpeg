@@ -922,6 +922,7 @@ static void close_connection(HTTPContext *c)
             if (st->codec->codec)
                 avcodec_close(st->codec);
         }
+	av_log(NULL, AV_LOG_TRACE, "closing input file\n");
         avformat_close_input(&c->fmt_in);
     }
 
@@ -2232,6 +2233,7 @@ static int open_input_stream(HTTPContext *c, const char *info)
     }
 
     /* open stream */
+    av_log(NULL, AV_LOG_TRACE, "opening input %s\n", input_filename);
     ret = avformat_open_input(&s, input_filename, c->stream->ifmt,
                               &c->stream->in_opts);
     if (ret < 0) {
@@ -2254,6 +2256,7 @@ static int open_input_stream(HTTPContext *c, const char *info)
     if (strcmp(s->iformat->name, "ffm") &&
         (ret = avformat_find_stream_info(c->fmt_in, NULL)) < 0) {
         http_log("Could not find stream info for input '%s'\n", input_filename);
+	av_log(NULL, AV_LOG_TRACE, "closing input file %s\n", input_filename);
         avformat_close_input(&s);
         return ret;
     }
@@ -2394,6 +2397,8 @@ static int http_prepare_data(HTTPContext *c)
                     return 0;
                 }
                 if (c->stream->loop) {
+                    av_log(NULL, AV_LOG_TRACE, "closing input file %s\n",
+                           c->stream->filename);
                     avformat_close_input(&c->fmt_in);
                     if (open_input_stream(c, "") < 0)
                         goto no_loop;
@@ -2858,6 +2863,8 @@ static int http_receive_data(HTTPContext *c)
             pb->seekable = 0;
 
             s->pb = pb;
+	    av_log(NULL, AV_LOG_TRACE, "opening input %s\n",
+                   c->stream->feed_filename);
             status = avformat_open_input(&s, c->stream->feed_filename,
                                          fmt_in, NULL);
             if (status < 0) {
@@ -2869,6 +2876,8 @@ static int http_receive_data(HTTPContext *c)
 
             /* Now we have the actual streams */
             if (s->nb_streams != feed->nb_streams) {
+                av_log(NULL, AV_LOG_TRACE, "closing input file %s\n",
+                       c->stream->feed_filename);
                 avformat_close_input(&s);
                 av_freep(&pb);
                 http_log("Feed '%s' stream number does not match registered feed\n",
@@ -2882,6 +2891,8 @@ static int http_receive_data(HTTPContext *c)
                 avcodec_parameters_to_context(fst->codec, st->codecpar);
                 avcodec_parameters_from_context(fst->codecpar, fst->codec);
             }
+            av_log(NULL, AV_LOG_TRACE, "closing input file %s\n",
+                   c->stream->feed_filename);
             avformat_close_input(&s);
             av_freep(&pb);
         }
@@ -3684,6 +3695,7 @@ static void build_file_streams(void)
         http_log("Opening feed file '%s' for stream '%s'\n",
                  stream->feed_filename, stream->filename);
 
+	av_log(NULL, AV_LOG_TRACE, "opening input %s\n", stream->feed_filename);
         ret = avformat_open_input(&infile, stream->feed_filename,
                                   stream->ifmt, &stream->in_opts);
         if (ret < 0) {
@@ -3698,13 +3710,16 @@ static void build_file_streams(void)
             if (avformat_find_stream_info(infile, NULL) < 0) {
                 http_log("Could not find codec parameters from '%s'\n",
                          stream->feed_filename);
+                av_log(NULL, AV_LOG_TRACE, "closing input file %s\n",
+                       stream->feed_filename);
                 avformat_close_input(&infile);
                 goto fail;
             }
 
             for(i=0;i<infile->nb_streams;i++)
                 add_av_stream1(stream, infile->streams[i]->codec, 1);
-
+            av_log(NULL, AV_LOG_TRACE, "closing input file %s\n",
+                   stream->feed_filename);
             avformat_close_input(&infile);
         }
     }
@@ -3775,6 +3790,8 @@ static int build_feed_streams(void)
 
             /* See if it matches */
 
+	    av_log(NULL, AV_LOG_TRACE, "opening input %s\n",
+                   feed->feed_filename);
             if (avformat_open_input(&s, feed->feed_filename, NULL, NULL) < 0) {
                 http_log("Deleting feed file '%s' as it appears "
                             "to be corrupt\n",
@@ -3785,6 +3802,8 @@ static int build_feed_streams(void)
             /* set buffer size */
             if (ffio_set_buf_size(s->pb, FFM_PACKET_SIZE) < 0) {
                 http_log("Failed to set buffer size\n");
+                av_log(NULL, AV_LOG_TRACE, "closing input file %s\n",
+                       feed->feed_filename);
                 avformat_close_input(&s);
                 goto bail;
             }
@@ -3818,9 +3837,11 @@ static int build_feed_streams(void)
             }
 
 drop:
-            if (s)
+            if (s) {
+                av_log(NULL, AV_LOG_TRACE, "closing input file %s\n",
+                       feed->feed_filename);
                 avformat_close_input(&s);
-
+            }
             if (!matches) {
                 if (feed->readonly) {
                     http_log("Unable to delete read-only feed file '%s'\n",
