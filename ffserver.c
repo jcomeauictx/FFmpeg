@@ -2730,7 +2730,6 @@ static int http_receive_data(HTTPContext *c)
            c->buffer_end > c->buffer_ptr) {
         /* read chunk header, if present */
         len = recv(c->fd, c->buffer_ptr, 1, 0);
-
         if (len < 0) {
             if (ff_neterrno() != AVERROR(EAGAIN) &&
                 ff_neterrno() != AVERROR(EINTR))
@@ -2743,6 +2742,7 @@ static int http_receive_data(HTTPContext *c)
         } else if (c->buffer_ptr - c->buffer >= 2 &&
                    !memcmp(c->buffer_ptr - 1, "\r\n", 2)) {
             c->chunk_size = strtol(c->buffer, 0, 16);
+	    av_log(NULL, AV_LOG_TRACE, "got chunk size of %d\n", c->chunk_size);
             if (c->chunk_size <= 0) { // end of stream or invalid chunk size
                 c->chunk_size = 0;
                 goto fail;
@@ -2757,16 +2757,21 @@ static int http_receive_data(HTTPContext *c)
     }
 
     if (c->buffer_end > c->buffer_ptr) {
+        av_log(NULL, AV_LOG_TRACE, "filled %d of %d buffer bytes\n",
+               c->buffer_end - c->buffer_ptr, c->buffer_end - c->buffer);
         len = recv(c->fd, c->buffer_ptr,
                    FFMIN(c->chunk_size, c->buffer_end - c->buffer_ptr), 0);
+	av_log(NULL, AV_LOG_TRACE, "recv got %d bytes\n", len);
         if (len < 0) {
             if (ff_neterrno() != AVERROR(EAGAIN) &&
                 ff_neterrno() != AVERROR(EINTR))
                 /* error : close connection */
                 goto fail;
-        } else if (len == 0)
+        } else if (len == 0) {
             /* end of connection : close it */
+            av_log(NULL, AV_LOG_TRACE, "end of connection\n");
             goto fail;
+        }
         else {
             av_assert0(len <= c->chunk_size);
             c->chunk_size -= len;
@@ -2874,6 +2879,7 @@ static int http_receive_data(HTTPContext *c)
 
     return 0;
  fail:
+    av_log(NULL, AV_LOG_ERROR, "reached fail\n");
     c->stream->feed_opened = 0;
     close(c->feed_fd);
     /* wake up any waiting connections to stop waiting for feed */
