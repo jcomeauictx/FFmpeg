@@ -693,6 +693,8 @@ static int write_packet(AVFormatContext *s, AVPacket *pkt)
     pts_backup = pkt->pts;
     dts_backup = pkt->dts;
 
+    av_log(s, AV_LOG_TRACE, "starting write_packet()\n");
+
     // If the timestamp offsetting below is adjusted, adjust
     // ff_interleaved_peek similarly.
     if (s->output_ts_offset) {
@@ -756,9 +758,13 @@ static int write_packet(AVFormatContext *s, AVPacket *pkt)
 
     if (!s->internal->header_written) {
         ret = s->internal->write_header_ret ? s->internal->write_header_ret : write_header_internal(s);
-        if (ret < 0)
+        if (ret < 0) {
+            av_log(s, AV_LOG_ERROR, "failed in write_header_internal()\n");
             goto fail;
+        }
     }
+
+    av_log(s, AV_LOG_TRACE, "writing packet of %d bytes\n", pkt->size);
 
     if ((pkt->flags & AV_PKT_FLAG_UNCODED_FRAME)) {
         AVFrame *frame = (AVFrame *)pkt->data;
@@ -1232,31 +1238,36 @@ static int interleave_packet(AVFormatContext *s, AVPacket *out, AVPacket *in, in
 int av_interleaved_write_frame(AVFormatContext *s, AVPacket *pkt)
 {
     int ret, flush = 0;
-
+    av_log(s, AV_LOG_TRACE, "starting av_interleaved_write_frame()\n");
     ret = prepare_input_packet(s, pkt);
-    if (ret < 0)
+    if (ret < 0) {
+        av_log(s, AV_LOG_ERROR, "failed in prepare_input_packet()\n");
         goto fail;
-
+    }
     if (pkt) {
         AVStream *st = s->streams[pkt->stream_index];
 
         ret = do_packet_auto_bsf(s, pkt);
         if (ret == 0)
             return 0;
-        else if (ret < 0)
+        else if (ret < 0) {
+            av_log(s, AV_LOG_ERROR, "failed in do_packet_auto_bsf()\n");
             goto fail;
-
+        }
         if (s->debug & FF_FDEBUG_TS)
             av_log(s, AV_LOG_TRACE, "av_interleaved_write_frame size:%d dts:%s pts:%s\n",
                 pkt->size, av_ts2str(pkt->dts), av_ts2str(pkt->pts));
 
 #if FF_API_COMPUTE_PKT_FIELDS2 && FF_API_LAVF_AVCTX
-        if ((ret = compute_muxer_pkt_fields(s, st, pkt)) < 0 && !(s->oformat->flags & AVFMT_NOTIMESTAMPS))
+        if ((ret = compute_muxer_pkt_fields(s, st, pkt)) < 0 && !(s->oformat->flags & AVFMT_NOTIMESTAMPS)) {
+            av_log(s, AV_LOG_ERROR, "failed in compute_muxer_pkt_fields()\n");
             goto fail;
+}
 #endif
 
         if (pkt->dts == AV_NOPTS_VALUE && !(s->oformat->flags & AVFMT_NOTIMESTAMPS)) {
             ret = AVERROR(EINVAL);
+	    av_log(s, AV_LOG_ERROR, "failed in av_interleaved_write_frame()\n");
             goto fail;
         }
     } else {
@@ -1272,17 +1283,20 @@ int av_interleaved_write_frame(AVFormatContext *s, AVPacket *pkt)
             av_init_packet(pkt);
             pkt = NULL;
         }
-        if (ret <= 0) //FIXME cleanup needed for ret<0 ?
+        if (ret <= 0) { //FIXME cleanup needed for ret<0 ?
+            av_log(s, AV_LOG_ERROR, "failed in interleave_packet()\n");
             return ret;
-
+        }
         ret = write_packet(s, &opkt);
         if (ret >= 0)
             s->streams[opkt.stream_index]->nb_frames++;
 
         av_packet_unref(&opkt);
 
-        if (ret < 0)
+        if (ret < 0) {
+            av_log(s, AV_LOG_ERROR, "failed in write_packet()\n");
             return ret;
+        }
         if(s->pb && s->pb->error)
             return s->pb->error;
     }
