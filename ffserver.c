@@ -2724,7 +2724,7 @@ static int http_start_receive_data(HTTPContext *c)
 static int http_receive_data(HTTPContext *c)
 {
     HTTPContext *c1;
-    int len, loop_run = 0;
+    int status, len, loop_run = 0;
 
     while (c->chunked_encoding && !c->chunk_size &&
            c->buffer_end > c->buffer_ptr) {
@@ -2858,10 +2858,12 @@ static int http_receive_data(HTTPContext *c)
             pb->seekable = 0;
 
             s->pb = pb;
-            if (avformat_open_input(&s, c->stream->feed_filename, fmt_in, NULL) < 0) {
+            status = avformat_open_input(&s, c->stream->feed_filename,
+                                         fmt_in, NULL);
+            if (status < 0) {
                 av_freep(&pb);
-		av_log(NULL, AV_LOG_ERROR, "failed opening %s\n",
-                       c->stream->feed_filename);
+                http_log("Could not open '%s': %s\n", c->stream->feed_filename,
+                         av_err2str(status));
                 goto fail;
             }
 
