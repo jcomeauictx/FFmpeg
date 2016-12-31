@@ -2758,7 +2758,7 @@ static int http_receive_data(HTTPContext *c)
 
     if (c->buffer_end > c->buffer_ptr) {
         av_log(NULL, AV_LOG_TRACE, "filled %d of %d buffer bytes\n",
-               c->buffer_end - c->buffer_ptr, c->buffer_end - c->buffer);
+               c->buffer_ptr - c->buffer, c->buffer_end - c->buffer);
         len = recv(c->fd, c->buffer_ptr,
                    FFMIN(c->chunk_size, c->buffer_end - c->buffer_ptr), 0);
 	av_log(NULL, AV_LOG_TRACE, "recv got %d bytes\n", len);
@@ -2793,7 +2793,11 @@ static int http_receive_data(HTTPContext *c)
         FFServerStream *feed = c->stream;
         /* a packet has been received : write it in the store, except
          * if header */
+	av_log(NULL, AV_LOG_TRACE, "packet received\n");
         if (c->data_count > FFM_PACKET_SIZE) {
+            av_log(NULL, AV_LOG_WARNING,
+                   "c->data_count %d > FFM_PACKET_SIZE %d\n",
+		   c->data_count, FFM_PACKET_SIZE);
             /* XXX: use llseek or url_seek
              * XXX: Should probably fail? */
             if (lseek(c->feed_fd, feed->feed_write_index, SEEK_SET) == -1)
@@ -2834,24 +2838,30 @@ static int http_receive_data(HTTPContext *c)
             AVInputFormat *fmt_in;
             int i;
 
-            if (!s)
+            if (!s) {
+                av_log(NULL, AV_LOG_ERROR, "failed avformat_alloc_context()\n");
                 goto fail;
+            }
 
             /* use feed output format name to find corresponding input format */
             fmt_in = av_find_input_format(feed->fmt->name);
-            if (!fmt_in)
+            if (!fmt_in) {
+                av_log(NULL, AV_LOG_ERROR, "failed av_find_input_format()\n");
                 goto fail;
-
+            }
             pb = avio_alloc_context(c->buffer, c->buffer_end - c->buffer,
                                     0, NULL, NULL, NULL, NULL);
-            if (!pb)
+            if (!pb) {
+                av_log(NULL, AV_LOG_ERROR, "failed avio_alloc_context()\n");
                 goto fail;
-
+            }
             pb->seekable = 0;
 
             s->pb = pb;
             if (avformat_open_input(&s, c->stream->feed_filename, fmt_in, NULL) < 0) {
                 av_freep(&pb);
+		av_log(NULL, AV_LOG_ERROR, "failed opening %s\n",
+                       c->stream->feed_filename);
                 goto fail;
             }
 
@@ -2870,7 +2880,6 @@ static int http_receive_data(HTTPContext *c)
                 avcodec_parameters_to_context(fst->codec, st->codecpar);
                 avcodec_parameters_from_context(fst->codecpar, fst->codec);
             }
-
             avformat_close_input(&s);
             av_freep(&pb);
         }
