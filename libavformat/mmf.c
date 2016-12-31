@@ -202,9 +202,12 @@ static int mmf_read_header(AVFormatContext *s)
     int64_t size;
     int rate, params;
 
+    av_log(s, AV_LOG_TRACE, "starting mmf_read_header\n");
     tag = avio_rl32(pb);
-    if (tag != MKTAG('M', 'M', 'M', 'D'))
+    if (tag != MKTAG('M', 'M', 'M', 'D')) {
+        //av_log(s, AV_LOG_ERROR, "tag found='%.4s', expected='MMMD'\n", &tag);
         return AVERROR_INVALIDDATA;
+    }
     avio_skip(pb, 4); /* file_size */
 
     /* Skip some unused chunks that may or may not be present */

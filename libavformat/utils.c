@@ -517,7 +517,7 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
     if (!s && !(s = avformat_alloc_context()))
         return AVERROR(ENOMEM);
     if (!s->av_class) {
-        av_log(NULL, AV_LOG_ERROR, "Input context has not been properly allocated by avformat_alloc_context() and is not NULL either\n");
+        av_log(s, AV_LOG_ERROR, "Input context has not been properly allocated by avformat_alloc_context() and is not NULL either\n");
         return AVERROR(EINVAL);
     }
     if (fmt)
@@ -530,13 +530,14 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
         s->flags |= AVFMT_FLAG_CUSTOM_IO;
 
     if ((ret = av_opt_set_dict(s, &tmp)) < 0) {
-        av_log(NULL, AV_LOG_ERROR, "Failed av_opt_set_dict()\n");
+        av_log(s, AV_LOG_ERROR, "Failed av_opt_set_dict()\n");
         goto fail;
     }
     if ((ret = init_input(s, filename, &tmp)) < 0) {
-        av_log(NULL, AV_LOG_ERROR, "Failed init_input()\n");
+        av_log(s, AV_LOG_ERROR, "Failed init_input()\n");
         goto fail;
     }
+    av_log(s, AV_LOG_TRACE, "avformat_open_input() opened file %s\n", filename);
     s->probe_score = ret;
 
     if (!s->protocol_whitelist && s->pb && s->pb->protocol_whitelist) {
@@ -554,7 +555,7 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
             goto fail;
         }
     }
-
+    av_log(s, AV_LOG_TRACE, "s->iformat->name: %s\n", s->iformat->name);
     if (s->format_whitelist && av_match_list(s->iformat->name, s->format_whitelist, ',') <= 0) {
         av_log(s, AV_LOG_ERROR, "Format not on whitelist \'%s\'\n", s->format_whitelist);
         ret = AVERROR(EINVAL);
@@ -562,7 +563,7 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
     }
 
     avio_skip(s->pb, s->skip_initial_bytes);
-    av_log(NULL, AV_LOG_TRACE, "skipped initial bytes\n");
+    av_log(s, AV_LOG_TRACE, "skipped initial bytes\n");
     /* Check filename in case an image number is expected. */
     if (s->iformat->flags & AVFMT_NEEDNUMBER) {
         if (!av_filename_number_test(filename)) {
@@ -575,18 +576,18 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
     av_strlcpy(s->filename, filename ? filename : "", sizeof(s->filename));
 
     /* Allocate private data. */
-    av_log(NULL, AV_LOG_TRACE, "allocating private data\n");
+    av_log(s, AV_LOG_TRACE, "allocating private data\n");
     if (s->iformat->priv_data_size > 0) {
         if (!(s->priv_data = av_mallocz(s->iformat->priv_data_size))) {
             ret = AVERROR(ENOMEM);
-	    av_log(NULL, AV_LOG_ERROR, "Failed av_mallocz()\n");
+	    av_log(s, AV_LOG_ERROR, "Failed av_mallocz()\n");
             goto fail;
         }
         if (s->iformat->priv_class) {
             *(const AVClass **) s->priv_data = s->iformat->priv_class;
             av_opt_set_defaults(s->priv_data);
             if ((ret = av_opt_set_dict(s->priv_data, &tmp)) < 0) {
-                av_log(NULL, AV_LOG_ERROR, "Failed av_opt_set_dict()\n");
+                av_log(s, AV_LOG_ERROR, "Failed av_opt_set_dict()\n");
                 goto fail;
             }
         }
@@ -598,7 +599,7 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
 
     if (!(s->flags&AVFMT_FLAG_PRIV_OPT) && s->iformat->read_header)
         if ((ret = s->iformat->read_header(s)) < 0) {
-            av_log(NULL, AV_LOG_ERROR, "Failed read_header()\n");
+            av_log(s, AV_LOG_ERROR, "Failed read_header()\n");
             goto fail;
         }
     if (id3v2_extra_meta) {

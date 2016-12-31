@@ -290,6 +290,7 @@ static int ffm2_read_header(AVFormatContext *s)
     AVCodec *enc;
     char *buffer;
 
+    av_log(s, AV_LOG_TRACE, "starting ffm2_read_header()\n");
     ffm->packet_size = avio_rb32(pb);
     if (ffm->packet_size != FFM_PACKET_SIZE) {
         av_log(s, AV_LOG_ERROR, "Invalid packet size %d, expected size was %d\n",

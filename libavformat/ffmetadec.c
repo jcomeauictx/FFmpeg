@@ -130,6 +130,7 @@ static int read_header(AVFormatContext *s)
     AVDictionary **m = &s->metadata;
     uint8_t line[1024];
 
+    av_log(s, AV_LOG_TRACE, "starting read_header()\n");
     while(!avio_feof(s->pb)) {
         get_line(s->pb, line, sizeof(line));
 

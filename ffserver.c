@@ -2801,7 +2801,7 @@ static int http_receive_data(HTTPContext *c)
 	av_log(NULL, AV_LOG_TRACE, "packet received\n");
         if (c->data_count > FFM_PACKET_SIZE) {
             av_log(NULL, AV_LOG_WARNING,
-                   "c->data_count %d > FFM_PACKET_SIZE %d\n",
+                   "c->data_count %lld > FFM_PACKET_SIZE %d\n",
 		   c->data_count, FFM_PACKET_SIZE);
             /* XXX: use llseek or url_seek
              * XXX: Should probably fail? */
@@ -2863,14 +2863,13 @@ static int http_receive_data(HTTPContext *c)
             pb->seekable = 0;
 
             s->pb = pb;
-	    av_log(NULL, AV_LOG_TRACE, "opening input %s\n",
+	    av_log(s, AV_LOG_TRACE, "opening input %s\n",
                    c->stream->feed_filename);
-            status = avformat_open_input(&s, c->stream->feed_filename,
-                                         fmt_in, NULL);
-            if (status < 0) {
+            if ((status = avformat_open_input(
+                    &s, c->stream->feed_filename, fmt_in, NULL)) < 0) {
                 av_freep(&pb);
-                http_log("Could not open '%s': %s\n", c->stream->feed_filename,
-                         av_err2str(status));
+                av_log(s, AV_LOG_ERROR, "Could not open file '%s': %s\n", 
+                       c->stream->feed_filename, av_err2str(status));
                 goto fail;
             }
 
@@ -3699,8 +3698,8 @@ static void build_file_streams(void)
         ret = avformat_open_input(&infile, stream->feed_filename,
                                   stream->ifmt, &stream->in_opts);
         if (ret < 0) {
-            http_log("Could not open '%s': %s\n", stream->feed_filename,
-                     av_err2str(ret));
+            av_log(stream, AV_LOG_ERROR, "Could not open '%s': %s\n", 
+                   stream->feed_filename, av_err2str(ret));
             /* remove stream (no need to spend more time on it) */
         fail:
             remove_stream(stream);
