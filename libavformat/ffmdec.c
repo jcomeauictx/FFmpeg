@@ -290,7 +290,6 @@ static int ffm2_read_header(AVFormatContext *s)
     AVCodec *enc;
     char *buffer;
 
-    av_log(s, AV_LOG_TRACE, "starting ffm2_read_header()\n");
     ffm->packet_size = avio_rb32(pb);
     if (ffm->packet_size != FFM_PACKET_SIZE) {
         av_log(s, AV_LOG_ERROR, "Invalid packet size %d, expected size was %d\n",
@@ -545,7 +544,6 @@ static int ffm_read_header(AVFormatContext *s)
     int i, nb_streams, ret;
     uint32_t tag;
 
-    av_log(s, AV_LOG_TRACE, "starting ffm_read_header()\n");
     /* header */
     tag = avio_rl32(pb);
     if (tag == MKTAG('F', 'F', 'M', '2'))
