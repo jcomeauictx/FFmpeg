@@ -549,7 +549,7 @@ static int ffm_read_header(AVFormatContext *s)
     if (tag == MKTAG('F', 'F', 'M', '2'))
         return ffm2_read_header(s);
     if (tag != MKTAG('F', 'F', 'M', '1')) {
-        av_log(s, AV_LOG_ERROR, "found tag %.4s, expecting 'FFM1'\n", &tag);
+        av_log(s, AV_LOG_ERROR, "found tag '%.4s', expecting 'FFM1'\n", &tag);
         ret = AVERROR_INVALIDDATA;
         goto fail;
     }

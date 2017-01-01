@@ -203,9 +203,8 @@ static int mmf_read_header(AVFormatContext *s)
     int rate, params;
 
     tag = avio_rl32(pb);
-    if (tag != MKTAG('M', 'M', 'M', 'D')) {
+    if (tag != MKTAG('M', 'M', 'M', 'D'))
         return AVERROR_INVALIDDATA;
-    }
     avio_skip(pb, 4); /* file_size */
 
     /* Skip some unused chunks that may or may not be present */
