@@ -1,3 +1,4 @@
+# `make V=1` for verbose build
 MAIN_MAKEFILE=1
 include config.mak
 
